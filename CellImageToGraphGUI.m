@@ -181,28 +181,51 @@ handles.microscopePosition = image.MicroscopePosition;
 handles.displayedImageTimept = 0;
 
 handles.imageDirectory = image.Directory;
-initImageViewer(handles);
 guidata(hObject, handles);
+initImageViewer(hObject, handles);
+
 
 
 %helper fxn for initImageViewer that generates the max intensity projection
 %for each channel
-function getMaxIntensityProjections(images, handles)
+function getMaxIntensityProjections(images, hObject, handles)
 %assume all channels are the same length
+%check pc or mac
+%parallelize?? <- parfor()
 reader = bfGetReader([handles.imageDirectory, '/', images.prefix]);
-%handles.maxIntensityProjections = cell(1, reader.getSizeT);
-for timept = 1 : reader.getSizeT
-    for channel = 1 : length(images.w)
-        %get max intensity z slice
-        currentChannel = ...
-             andorMaxIntensityBF(images, handles.microscopePosition, timept, images.w(channel));
-         handles.maxIntensityProjections(channel) = currentChannel;
+%Init max intensity projection storage for all timepoints for all channels
+handles.maxIntensityProjections = cell(1, reader.getSizeT); 
+numberOfChannels = length(images.w);
+%load one image bfGetPlane(); bfOpen()
+
+for timept = 1 : 1 %reader.getSizeT
+    %assume 1024 X 1024 pixels
+    handles.maxIntensityProjections{timept} = zeros(1024, 1024, numberOfChannels); 
+    for channel = 1 : numberOfChannels 
+       %get max intensity z slice
+       currentChannel = ...
+           andorMaxIntensityBF(images, handles.microscopePosition, timept - 1, images.w(channel));
+       handles.maxIntensityProjections{timept}(:, :, channel) = currentChannel;
     end      
-end
-    
-%    
+end 
+guidata(hObject, handles);
 
+%Initializes Image Viewer Panel based on user input
+function initImageViewer(hObject, handles)
+images = readAndorDirectory(handles.imageDirectory); 
 
+getMaxIntensityProjections(images, hObject, handles)
+handles.ImagePanel = showImg(num2cell(handles.maxIntensityProjections{1}(:, :, 1)));
+guidata(hObject, handles);
+
+% --- Executes on slider movement.
+function scrollImageSet_Callback(hObject, eventdata, handles)
+% hObject    handle to scrollImageSet (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 %img0 = ; %diff channels
 %     img1 = andorMaxIntensityBF(ff,handles.pos,handles.currtime,1); %diff channels
 %     axes(handles.axes1)
@@ -215,39 +238,6 @@ end
 %         img2show{2} = imadjust(img1);
 %     end
 %     showImg(img2show); hold on;
-
-
-%Initializes Image Viewer Panel based on user input
-function initImageViewer(handles)
-%info about user selected image set
-images = readAndorDirectory(handles.imageDirectory); 
-% if images.p ~= handles.microscopePosition
-%     disp('The desired images are not in this directory');
-% end
-
-%get max int projection if necessary
-getMaxIntensityProjections(images, handles)
-% axes(handles.axes1)
-%     zz = zeros(size(img0));
-%     img2show = {zz,zz,zz};
-%     if get(handles.redbox,'Value')
-%         img2show{1} = imadjust(img0);
-%     end
-%     if get(handles.greenbox,'Value')
-%         img2show{2} = imadjust(img1);
-%     end
-%     showImg(img2show); hold on;
-% end
-
-% --- Executes on slider movement.
-function scrollImageSet_Callback(hObject, eventdata, handles)
-% hObject    handle to scrollImageSet (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-
 
 % --- Executes during object creation, after setting all properties.
 function scrollImageSet_CreateFcn(hObject, eventdata, handles)
