@@ -107,9 +107,8 @@ end
 set(handles.isLoaded, 'BackgroundColor', [0, 1, 0]);
 handles.loadedMAT = 1;
 handles.highlightedCell = 1;
-handles.colonyColors = initGraph(hObject, handles);
 guidata(hObject,handles);
-
+initGraph(hObject, handles);
 
 % function getPixelOnMouseMove
 % MousePos = get(mainAxis,'CurrentPoint');
@@ -129,9 +128,9 @@ for colony = 1 : length(handles.coloniesToPlot)
         colonyColors{colony} = markerColor;
         currentColony = handles.colonies(colony);
         totalCells = length(currentColony.cells);
-        for eachCell = 1 : totalCells
+        for cell = 1 : totalCells
             %get each cell
-            currentCell = currentColony.cells(eachCell);
+            currentCell = currentColony.cells(cell);
             cytoToNuclearFluor = currentCell.fluorData(:, 2) ./ ...
                 currentCell.fluorData(:, 3);
             currentMaxT = max(currentCell.onframes);
@@ -162,7 +161,7 @@ hold off;
 guidata(hObject, handles);
 
 %Initialize graph view to visualize all colonies
-function colonyColors = initGraph(hObject, handles)
+function initGraph(hObject, handles)
 if isfield(handles,'colonies')
     %originally set graphvis to view all colonies
     handles.coloniesToPlot = ones(1 : length(handles.colonies));
@@ -174,6 +173,7 @@ if (length(handles.colonies) > 1)
     %more than one colony exists
     set(handles.selectColoniesButton, 'Visible', 'on');
 end
+handles.colonyColors = colonyColors;
 guidata(hObject,handles);
 %set(gcf,'WindowButtonMotionFcn', {@getPixelOnMouseMove, handles.GraphAxes});
 
@@ -315,7 +315,7 @@ hold on;
              search = [times', coordinates];
              cellsToPlot = find(search(search(:, 1)) == handles.imgTimept + 1);
              coordToPlot = search(cellsToPlot, [2, 3]);
-             scatter(coordToPlot(:, 1), coordToPlot(:, 2), [], handles.colonyColors{colony});
+             scatter(coordToPlot(:, 1), coordToPlot(:, 2), [], c);
          end
      end
  hold off
