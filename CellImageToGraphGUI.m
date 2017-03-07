@@ -230,7 +230,7 @@ function maxIntensityProjections = getMaxIntensityProjections(images, hObject, h
 %     end
 % end
 %-------------
-totalTime = 2;% for the purposes of troubleshooting look at the first two time points
+totalTime = 10;% for the purposes of troubleshooting look at the first two time points
 %Init max intensity projection storage for all timepoints for all channels
 maxIntensityProjections = cell(1, totalTime);
 numberOfChannels = length(images.w);
@@ -248,11 +248,18 @@ end
 
 
 %Initializes Image Viewer Panel based on user input
-function maxIntensityProjections = initImageViewer(hObject, eventdata, handles)
+function [maxIntensityProjections, limsNucl, limsCyto]  = initImageViewer(hObject, eventdata, handles)
 axes(handles.ImageAxes);
 images = readAndorDirectory(handles.imageDirectory);
 maxIntensityProjections = getMaxIntensityProjections(images, hObject, handles);
 handles.maxIntensityProjections = maxIntensityProjections;
+initNucl = maxIntensityProjections{1}(:, :, 1);
+limsNucl = [min(initNucl(:)), max(initNucl(:))];
+handles.limsNuc = limsNucl;
+%guidata(hObject, handles);
+initCyto = maxIntensityProjections{1}(:, :, 2);
+limsCyto = [0.05 0.95];%[min(initCyto(:)), max(initCyto(:))];
+handles.limsCyt = limsCyto;
 set(handles.scrollImageSet, 'Min', 1);                                       % handles is empty, so returs the error when try to set
 set(handles.scrollImageSet, 'Max', length(handles.maxIntensityProjections));
 set(handles.scrollImageSet, 'Value', 1); %init at timept 1
@@ -274,7 +281,11 @@ image = StructDlg(image);
 handles.microscopePosition = image.MicroscopePosition;
 handles.imgTimept = 1; %arbitrarily picked to start time from 1
 handles.imageDirectory = image.Directory;
-maxIntensityProjections = initImageViewer(hObject, eventdata, handles);
+[maxIntensityProjections, limsNucl, limsCyto] = initImageViewer(hObject, eventdata, handles);
+
+%guidata(hObject, handles);
+handles.limsNuc = limsNucl;
+handles.limsCyt = limsCyto;
 handles.maxIntensityProjections = maxIntensityProjections;
 guidata(hObject, handles);
 
@@ -300,11 +311,12 @@ imageNumberSelected = int32(get(handles.scrollImageSet, 'Value'));
 handles.imgTimept = imageNumberSelected;
 Nuclear_Callback(hObject, eventdata, handles)
 Cytosolic_Callback(hObject, eventdata, handles)
+%TODO: fix need to scroll through image if no matfile loaded
 cellsToEnlarge = getXYColonyTime(handles, handles.coloniesToPlot);
 delete(allchild(handles.GraphAxes));
 helpPlot(hObject, handles, handles.coloniesToPlot);
 
-plot(handles.GraphAxes, cellsToEnlarge(:, 1), cellsToEnlarge(:, 4), ...
+plot(handles.GraphAxes, cellsToEnlarge(:, 1), cellsToEnlarge(:, 4), 'LineStyle', 'none', ...
             'Marker', '.','Markersize', 50, 'Color', handles.colonyColors(handles.coloniesToPlot, :));
 %CellLabelling_Callback(hObject, eventdata, handles)
 
@@ -323,14 +335,15 @@ displayNuc = get(handles.Nuclear,'Value');
 set(handles.Nuclear, 'Value', displayNuc);
 if displayNuc
     if get(handles.Cytosolic, 'Value')
-        imshow(imfuse(nuc, cyto), []);
+        imshow(imfuse(nuc, cyto, 'ColorChannels', [1 2 0]), handles.limsCyt);
     else
-        imshow(nuc, []);
+        imshow(cat(3, nuc ./ max(max(nuc)), zeros(size(nuc)), zeros(size(nuc))), handles.limsNuc);
     end
 else
     %just display cyto and not nucl bc can't show nothing
     set(handles.Cytosolic, 'Value', 1);
-    imshow(cyto, []);
+    imshow(cat(3, zeros(size(cyto)), cyto ./ max(max(cyto)), zeros(size(cyto))), handles.limsCyt); 
+    %imshow(imfuse(cyto, cyto, 'ColorChannels', [1 1 0]), handles.limsCyt);
 end
 if get(handles.CellLabelling, 'Value')
     %displays cell labels on ImageAxes
@@ -350,15 +363,17 @@ displayCyt = get(handles.Cytosolic, 'Value');
 set(handles.Cytosolic, 'Value', displayCyt);
 if displayCyt
     if get(handles.Nuclear, 'Value')
-        imshow(imfuse(nuc, cyto), []);
+        imshow(imfuse(nuc, cyto, 'ColorChannels', [1 2 0]), handles.limsCyt);
     else
-        imshow(cyto, []);
+        imshow(cat(3, zeros(size(cyto)), cyto ./ max(max(cyto)), zeros(size(cyto))), handles.limsCyt);
     end
 else
     %just display nuc and not cyto
     set(handles.Nuclear, 'Value', 1);
-    imshow(nuc, []);
+    %test = cat(3, nuc, zeros(size(nuc)), zeros(size(nuc)));
+    imshow(cat(3, nuc ./ max(max(nuc)), zeros(size(nuc)), zeros(size(nuc))), handles.limsNuc); % imfuse(nuc, nuc, 'ColorChannels', [1 1 0]), handles.limsNuc);
 end
+
 if get(handles.CellLabelling, 'Value')
     %displays cell labels on ImageAxes
     CellLabellingTrue(hObject, eventdata, handles)
